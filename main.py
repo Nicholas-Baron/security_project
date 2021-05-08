@@ -2,11 +2,24 @@
 
 from argparse import ArgumentParser, FileType
 from sqlite3 import connect
+from pprint import pprint
 
 
 def get_table_names(cursor) -> [str]:
-    tables = cursor.execute("select name from sqlite_master where type = 'table'")
-    return [x[0] for x in tables]
+    return [
+        x[0]
+        for x in cursor.execute("select name from sqlite_master where type = 'table'")
+    ]
+
+
+def possible_values(rows):
+    values = [set() for _ in rows[0]]
+
+    for row in rows:
+        for i, col in enumerate(row):
+            values[i].add(col)
+
+    return values
 
 
 def main(database_file, diversity: int):
@@ -16,9 +29,19 @@ def main(database_file, diversity: int):
     assert len(tables) == 1
     table = tables[0]
 
-    print(table)
-    for row in cur.execute(f"select * from {table}"):
+    rows = [row for row in cur.execute(f"select * from {table}")]
+    assert len(rows) != 0
+
+    print("Table name:", table)
+    print(f"Read in {len(rows)} rows")
+    print("Schema", [type(x) for x in rows[0]])
+
+    for row in rows:
         print(row)
+
+    values = possible_values(rows)
+    pprint(values)
+    print("Values per column", [len(x) for x in values])
 
     cur.connection.commit()
     cur.close()
