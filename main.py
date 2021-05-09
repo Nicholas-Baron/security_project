@@ -1,35 +1,18 @@
 #!/bin/python
 
 from argparse import ArgumentParser, FileType
-from sqlite3 import connect
 from pprint import pprint
 
-
-def get_table_names(cursor) -> [str]:
-    return [
-        x[0]
-        for x in cursor.execute("select name from sqlite_master where type = 'table'")
-    ]
-
-
-def possible_values(rows):
-    values = [set() for _ in rows[0]]
-
-    for row in rows:
-        for i, col in enumerate(row):
-            values[i].add(col)
-
-    return values
+from sql_helper import open_database, possible_values, read_whole_table
 
 
 def main(database_file, diversity: int):
-    cur = connect(database_file.name).cursor()
 
-    tables = get_table_names(cur)
+    cur, tables = open_database(database_file)
     assert len(tables) == 1
     table = tables[0]
 
-    rows = [row for row in cur.execute(f"select * from {table}")]
+    rows = read_whole_table(table, cur)
     assert len(rows) != 0
 
     print("Table name:", table)
