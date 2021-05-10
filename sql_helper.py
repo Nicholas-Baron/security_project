@@ -1,8 +1,10 @@
-from sqlite3 import connect
+from sqlite3 import connect, Row
 
 
 def open_database(file):
-    cursor = connect(file.name).cursor()
+    connection = connect(file.name)
+    connection.row_factory = Row
+    cursor = connection.cursor()
     return (cursor, get_table_names(cursor))
 
 
@@ -14,11 +16,11 @@ def get_table_names(cursor) -> [str]:
 
 
 def possible_values(rows):
-    values = [set() for _ in rows[0]]
+    values = {column_name: set() for column_name in rows[0].keys()}
 
     for row in rows:
-        for i, col in enumerate(row):
-            values[i].add(col)
+        for column_name, col in zip(row.keys(), row):
+            values[column_name].add(col)
 
     return values
 

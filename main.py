@@ -20,11 +20,14 @@ def main(database_file, diversity: int):
     print("Schema", [type(x) for x in rows[0]])
 
     for row in rows:
-        print(row)
+        print(tuple(row))
 
     values = possible_values(rows)
     pprint(values)
-    print("Values per column", [len(x) for x in values])
+    print("Value counts: ", end="")
+    pprint(
+        {column_name: len(values) for column_name, values in values.items()},
+    )
 
     cur.connection.commit()
     cur.close()
