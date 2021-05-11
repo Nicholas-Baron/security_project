@@ -6,7 +6,7 @@ from pprint import pprint
 from sql_helper import open_database, possible_values, read_whole_table
 
 
-def main(database_file, diversity: int):
+def main(database_file, diversity: int, sensitive_columns_count: int):
 
     cur, tables = open_database(database_file)
     assert len(tables) == 1
@@ -48,5 +48,13 @@ if __name__ == "__main__":
         type=int,
         required=False,
     )
+    arg_parser.add_argument(
+        "-s",
+        "--sensitive",
+        help="The number of sensitive columns on the right side of the schema",
+        default=1,
+        type=int,
+        required=False,
+    )
     args = arg_parser.parse_args()
-    main(args.database_file, args.diversity)
+    main(args.database_file, args.diversity, args.sensitive)
