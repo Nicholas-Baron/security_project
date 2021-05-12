@@ -6,7 +6,30 @@ from pprint import pprint
 from sql_helper import open_database, possible_values, read_whole_table
 
 
-def main(database_file, diversity: int, sensitive_columns_count: int):
+def diversity_of(rows, sensitive_column_count: int) -> int:
+
+    blocks_by_sensitive_data = {}
+    for row in rows:
+        sensitive_key = row[-sensitive_column_count:]
+        qid = row[:-sensitive_column_count]
+        print(sensitive_key, "has", qid)
+        if sensitive_key in blocks_by_sensitive_data:
+            blocks_by_sensitive_data[sensitive_key].append(qid)
+        else:
+            blocks_by_sensitive_data[sensitive_key] = [qid]
+
+    return min(len(x) for x in blocks_by_sensitive_data.values())
+
+
+def remove_column(col, rows):
+    result = []
+    for row in rows:
+        result.append(tuple(x for i, x in enumerate(row) if i != col))
+
+    return result
+
+
+def main(database_file, diversity: int, sensitive_column_count: int, remove_list):
 
     cur, tables = open_database(database_file)
     assert len(tables) == 1
@@ -32,6 +55,16 @@ def main(database_file, diversity: int, sensitive_columns_count: int):
     cur.connection.commit()
     cur.close()
 
+    processed = rows
+    for col in sorted(remove_list, reverse=True):
+        processed = remove_column(col, processed)
+
+    print("Data after removing columns")
+    for row in processed:
+        print(tuple(row))
+
+    print("Input diversity", diversity_of(processed, sensitive_column_count))
+
 
 if __name__ == "__main__":
     arg_parser = ArgumentParser()
@@ -56,5 +89,13 @@ if __name__ == "__main__":
         type=int,
         required=False,
     )
+    arg_parser.add_argument(
+        "-r",
+        "--remove_list",
+        help="Which columns (0-based) to remove entirely as a comma-separated list",
+        default=[],
+        type=lambda string: [int(x) for x in string.split(",")],
+        required=False,
+    )
     args = arg_parser.parse_args()
-    main(args.database_file, args.diversity, args.sensitive)
+    main(args.database_file, args.diversity, args.sensitive, args.remove_list)
