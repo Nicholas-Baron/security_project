@@ -2,6 +2,7 @@
 
 from argparse import ArgumentParser, FileType
 from pprint import pprint
+from math import log10
 
 from sql_helper import (
     open_database,
@@ -13,8 +14,11 @@ from sql_helper import (
 )
 
 
-def diversity_of(rows, sensitive_column_count: int) -> int:
+def quasi_id(row, sensitive_column_count):
+    return row[:-sensitive_column_count]
 
+
+def diversity_of(rows, sensitive_column_count):
     blocks_by_sensitive_data = {}
     for row in rows:
         sensitive_key = row[-sensitive_column_count:]
@@ -28,12 +32,65 @@ def diversity_of(rows, sensitive_column_count: int) -> int:
     return min(len(x) for x in blocks_by_sensitive_data.values())
 
 
+# Entropy-based
+def is_diverse(rows, sensitive_column_count, diversity):
+    # QID tuples -> { sensitive -> count }
+    q_star_blocks = {}
+
+    for row in rows:
+        qid = quasi_id(row, sensitive_column_count)
+        sensitive = row[-sensitive_column_count:]
+        if qid not in q_star_blocks:
+            # This qid has not been seen
+            q_star_blocks[qid] = {sensitive: 1}
+        elif sensitive not in q_star_blocks[qid]:
+            # This sensitive attribute for the current qid has not been seen
+            q_star_blocks[qid][sensitive] = 1
+        else:
+            q_star_blocks[qid][sensitive] += 1
+
+    pprint(q_star_blocks)
+
+    for q_star_block in q_star_blocks.values():
+        total = 0
+        for sensitive, count in q_star_block.items():
+            tuple_count = sum(q_star_block.values())
+            frac_with_sensitive = count / tuple_count
+            for other_sensitive in (x for x in q_star_block.keys() if x != sensitive):
+                total += frac_with_sensitive * log10(
+                    q_star_block[other_sensitive] / tuple_count
+                )
+
+        if -total < log10(diversity):
+            return False
+
+    return True
+
+
 def remove_column(col, rows):
     result = []
     for row in rows:
         result.append(tuple(x for i, x in enumerate(row) if i != col))
 
     return result
+
+
+def anonymized(value):
+    if type(value) is int:
+        if value <= 0:
+            return value
+        # Make the lowest non-zero digit a zero.
+        val_str = str(value)
+        for x in range(1, len(val_str) + 1):
+            if val_str[-x] != "0":
+                val_str = val_str[: -(x + 1)] + "0" + ("0" * x)
+                break
+
+        assert int(val_str) < value, {"val_str": val_str, "value": value}
+
+        return int(val_str)
+    else:
+        assert False, ("Could not anonymize ", value)
 
 
 def main(
@@ -75,7 +132,7 @@ def main(
 
     initial_diversity = diversity_of(processed, sensitive_column_count)
     print("Input diversity", initial_diversity)
-    if initial_diversity >= diversity:
+    if is_diverse(processed, sensitive_column_count, diversity):
         print(f"Removing columns has resulted in a {initial_diversity}-diverse dataset")
         write_rows(
             output_file,
@@ -85,6 +142,20 @@ def main(
         return
 
     print("Need to diversify data")
+    while not is_diverse(processed, sensitive_column_count, diversity):
+        new_processed = []
+        print("Diversifying...")
+        for row in processed:
+            print(row)
+            new_processed.append(
+                tuple(
+                    anonymized(col) if i < len(row) - sensitive_column_count else col
+                    for i, col in enumerate(row)
+                )
+            )
+
+        processed = new_processed
+        print("New diversity is", diversity_of(processed, sensitive_column_count))
 
 
 if __name__ == "__main__":
