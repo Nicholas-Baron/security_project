@@ -3,7 +3,14 @@
 from argparse import ArgumentParser, FileType
 from pprint import pprint
 
-from sql_helper import open_database, possible_values, read_whole_table
+from sql_helper import (
+    open_database,
+    possible_values,
+    read_whole_table,
+    write_rows,
+    col_names_and_types,
+    type_list,
+)
 
 
 def diversity_of(rows, sensitive_column_count: int) -> int:
@@ -29,7 +36,9 @@ def remove_column(col, rows):
     return result
 
 
-def main(database_file, diversity: int, sensitive_column_count: int, remove_list):
+def main(
+    database_file, output_file, diversity: int, sensitive_column_count: int, remove_list
+):
 
     cur, tables = open_database(database_file)
     assert len(tables) == 1
@@ -37,6 +46,7 @@ def main(database_file, diversity: int, sensitive_column_count: int, remove_list
 
     rows = read_whole_table(table, cur)
     assert len(rows) != 0
+    print("Read in", len(rows), "rows")
 
     print("Table name:", table)
     print(f"Read in {len(rows)} rows")
@@ -63,7 +73,18 @@ def main(database_file, diversity: int, sensitive_column_count: int, remove_list
     for row in processed:
         print(tuple(row))
 
-    print("Input diversity", diversity_of(processed, sensitive_column_count))
+    initial_diversity = diversity_of(processed, sensitive_column_count)
+    print("Input diversity", initial_diversity)
+    if initial_diversity >= diversity:
+        print(f"Removing columns has resulted in a {initial_diversity}-diverse dataset")
+        write_rows(
+            output_file,
+            processed,
+            col_names_and_types(rows[0].keys(), type_list(rows[0]), remove_list),
+        )
+        return
+
+    print("Need to diversify data")
 
 
 if __name__ == "__main__":
@@ -72,6 +93,11 @@ if __name__ == "__main__":
         "database_file",
         help="The file from which the database is loaded",
         type=FileType(),
+    )
+    arg_parser.add_argument(
+        "output_file",
+        help="The file where the result database will be saved",
+        type=FileType("w"),
     )
     arg_parser.add_argument(
         "-d",
@@ -98,4 +124,10 @@ if __name__ == "__main__":
         required=False,
     )
     args = arg_parser.parse_args()
-    main(args.database_file, args.diversity, args.sensitive, args.remove_list)
+    main(
+        args.database_file,
+        args.output_file,
+        args.diversity,
+        args.sensitive,
+        args.remove_list,
+    )
