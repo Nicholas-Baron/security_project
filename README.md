@@ -1,7 +1,7 @@
 # Easy l-diversity implementation
 
 This implementation of the l-diversity algorithm is done as an example in Python.
-The two example datasets provided in this repository are the UCI census dataset and the example dataset from the reference paper.
+The two example datasets provided in this repository are the UCI census dataset and the example dataset from the reference paper from Figure 1 on page 3.
 
 ## Assumptions
 
