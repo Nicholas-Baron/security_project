@@ -71,11 +71,7 @@ def is_diverse(rows, sensitive_column_count, diversity):
 
 
 def remove_column(col, rows):
-    result = []
-    for row in rows:
-        result.append(tuple(x for i, x in enumerate(row) if i != col))
-
-    return result
+    return [tuple(x for i, x in enumerate(row) if i != col) for row in rows]
 
 
 def anonymized(value):
