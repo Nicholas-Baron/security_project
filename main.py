@@ -3,6 +3,7 @@
 from argparse import ArgumentParser, FileType
 from pprint import pprint
 from math import log10
+from logging import getLogger
 
 from sql_helper import (
     open_database,
@@ -12,6 +13,8 @@ from sql_helper import (
     col_names_and_types,
     type_list,
 )
+
+logger = getLogger("l-diversity")
 
 
 def quasi_id(row, sensitive_column_count):
@@ -23,7 +26,7 @@ def diversity_of(rows, sensitive_column_count):
     for row in rows:
         sensitive_key = row[-sensitive_column_count:]
         qid = row[:-sensitive_column_count]
-        print(sensitive_key, "has", qid)
+        logger.debug("%s has %s", sensitive_key, qid)
         if sensitive_key in blocks_by_sensitive_data:
             blocks_by_sensitive_data[sensitive_key].append(qid)
         else:
@@ -49,7 +52,7 @@ def is_diverse(rows, sensitive_column_count, diversity):
         else:
             q_star_blocks[qid][sensitive] += 1
 
-    pprint(q_star_blocks)
+    logger.debug("q* blocks: %s", q_star_blocks)
 
     for q_star_block in q_star_blocks.values():
         total = 0
@@ -90,6 +93,7 @@ def anonymized(value):
 
         return int(val_str)
     else:
+        logger.error("Could not anonymize %s", value)
         assert False, ("Could not anonymize ", value)
 
 
@@ -101,23 +105,13 @@ def main(
     assert len(tables) == 1
     table = tables[0]
 
+    logger.info("Table name: %s", table)
+
     rows = read_whole_table(table, cur)
     assert len(rows) != 0
-    print("Read in", len(rows), "rows")
 
-    print("Table name:", table)
-    print(f"Read in {len(rows)} rows")
-    print("Schema", [type(x) for x in rows[0]])
-
-    for row in rows:
-        print(tuple(row))
-
-    values = possible_values(rows)
-    pprint(values)
-    print("Value counts: ", end="")
-    pprint(
-        {column_name: len(values) for column_name, values in values.items()},
-    )
+    logger.info("Read in %d rows", len(rows))
+    logger.info("Schema: %s", [type(x) for x in rows[0]])
 
     cur.connection.commit()
     cur.close()
@@ -126,21 +120,13 @@ def main(
     for col in sorted(remove_list, reverse=True):
         processed = remove_column(col, processed)
 
-    print("Data after removing columns")
-    for row in processed:
-        print(tuple(row))
-
-    initial_diversity = diversity_of(processed, sensitive_column_count)
-    print("Input diversity", initial_diversity)
     if is_diverse(processed, sensitive_column_count, diversity):
-        print(f"Removing columns has resulted in a {initial_diversity}-diverse dataset")
+        logger.info("Removing columns has resulted in a %d-diverse dataset", diversity)
     else:
-        print("Need to diversify data")
+        logger.info("Need to diversify data")
         while not is_diverse(processed, sensitive_column_count, diversity):
             new_processed = []
-            print("Diversifying...")
             for row in processed:
-                print(row)
                 new_processed.append(
                     tuple(
                         anonymized(col)
@@ -151,7 +137,6 @@ def main(
                 )
 
             processed = new_processed
-            print("New diversity is", diversity_of(processed, sensitive_column_count))
 
     write_rows(
         output_file,
