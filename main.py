@@ -134,28 +134,30 @@ def main(
     print("Input diversity", initial_diversity)
     if is_diverse(processed, sensitive_column_count, diversity):
         print(f"Removing columns has resulted in a {initial_diversity}-diverse dataset")
-        write_rows(
-            output_file,
-            processed,
-            col_names_and_types(rows[0].keys(), type_list(rows[0]), remove_list),
-        )
-        return
-
-    print("Need to diversify data")
-    while not is_diverse(processed, sensitive_column_count, diversity):
-        new_processed = []
-        print("Diversifying...")
-        for row in processed:
-            print(row)
-            new_processed.append(
-                tuple(
-                    anonymized(col) if i < len(row) - sensitive_column_count else col
-                    for i, col in enumerate(row)
+    else:
+        print("Need to diversify data")
+        while not is_diverse(processed, sensitive_column_count, diversity):
+            new_processed = []
+            print("Diversifying...")
+            for row in processed:
+                print(row)
+                new_processed.append(
+                    tuple(
+                        anonymized(col)
+                        if i < len(row) - sensitive_column_count
+                        else col
+                        for i, col in enumerate(row)
+                    )
                 )
-            )
 
-        processed = new_processed
-        print("New diversity is", diversity_of(processed, sensitive_column_count))
+            processed = new_processed
+            print("New diversity is", diversity_of(processed, sensitive_column_count))
+
+    write_rows(
+        output_file,
+        processed,
+        col_names_and_types(rows[0].keys(), type_list(rows[0]), remove_list),
+    )
 
 
 if __name__ == "__main__":
