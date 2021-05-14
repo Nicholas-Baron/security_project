@@ -88,6 +88,8 @@ def anonymized(value):
         assert int(val_str) < value, {"val_str": val_str, "value": value}
 
         return int(val_str)
+    elif type(value) is str:
+        return value[:-1]  # remove the last character from the string
     else:
         logger.error("Could not anonymize %s", value)
         assert False, ("Could not anonymize ", value)
