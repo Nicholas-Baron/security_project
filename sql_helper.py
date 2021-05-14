@@ -30,12 +30,16 @@ def read_whole_table(table: str, cursor) -> [str]:
 
 
 def write_rows(file, rows, columns, table_name="result"):
+
+    assert len(rows) != 0
+    tuple_template = ("?," * len(rows[0]))[:-1]
+
     with connect(file.name) as connection:
         cursor = connection.cursor()
 
         cursor.execute(f'create table {table_name} ({", ".join(columns)})')
 
-        cursor.executemany(f"insert into {table_name} values (?,?,?)", rows)
+        cursor.executemany(f"insert into {table_name} values ({tuple_template})", rows)
 
         connection.commit()
 
